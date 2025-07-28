@@ -132,7 +132,15 @@ public class JWTUtil {
         cookie.setMaxAge(maxAge); // 초 단위
         cookie.setPath("/");
         cookie.setHttpOnly(true);
-        cookie.setDomain("jangmadang.site");
+        String activeProfile = System.getProperty("spring.profiles.active", "local");
+
+        if ("local".equals(activeProfile)) {
+            cookie.setDomain("localhost"); // 로컬 개발에서는 localhost
+            cookie.setSecure(false);
+        } else {
+            cookie.setDomain("jangmadang.site");
+            cookie.setSecure(true); // 운영은 HTTPS 전용
+        }
 //        cookie.setSecure(true); // HTTPS 필수
         return cookie;
     }

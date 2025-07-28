@@ -9,6 +9,7 @@ import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.oauth2.core.oidc.user.OidcUser;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.security.web.authentication.SimpleUrlAuthenticationSuccessHandler;
 import org.springframework.stereotype.Component;
@@ -35,13 +36,22 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
         // 4. 카카오에 사용자 정보 요청
 
         // 5. 사용자 정보 받아오기
-        OAuth2User oAuth2User = (OAuth2User) authentication.getPrincipal();
-        log.info("로그인 성공! 사용자 정보: {}", oAuth2User.getAttributes());
+        Object principal = authentication.getPrincipal();
+
+        if (!(principal instanceof OidcUser oidcUser)) {
+            log.error("OidcUser가 아님. id_token을 추출할 수 없습니다.");
+            response.sendRedirect("https://www.jangmadang.site/error");
+            return;
+        }
+        // id_token 추출
+        String idToken = oidcUser.getIdToken().getTokenValue();
+        log.info("카카오 id_token 추출 완료: {}", idToken);
+
 
         // 6. 사용자 정보 확인
-        Map<String, Object> kakaoAccount = (Map<String, Object>) oAuth2User.getAttributes().get("kakao_account");
+        Map<String, Object> kakaoAccount = (Map<String, Object>) oidcUser.getAttributes().get("kakao_account");
         String email = kakaoAccount.get("email").toString();
-        log.info("{}", kakaoAccount.get("email"));
+        log.info("로그인 이메일: {}", email);
 
         // 신규 회원
         if (!userService.isExistUserByEmail(email)) {
@@ -53,6 +63,7 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
             return;
         }
 
+
         // 엑세스 토큰 생성
         Long userId = userService.findIdByEmail(email);
         String accessToken = jwtUtil.createAccessToken("access", userId, email);
@@ -60,8 +71,9 @@ public class OAuthLoginSuccessHandler extends SimpleUrlAuthenticationSuccessHand
 
         userService.addRefreshToken(userId, refreshToken); // 리프레시 토큰 저장
 
-        response.addCookie(jwtUtil.createCookie("access", accessToken, 24 * 60 * 60)); // 24시간(개발용)
-        response.addCookie(jwtUtil.createCookie("refresh", refreshToken, 7 * 24 * 60 * 60)); // 1주일(개발용)
+        response.addCookie(jwtUtil.createCookie("access", accessToken, 24 * 60 * 60));
+        response.addCookie(jwtUtil.createCookie("refresh", refreshToken, 7 * 24 * 60 * 60));
+        response.addCookie(jwtUtil.createCookie("id_token", idToken, 300));
         log.info("쿠키 전달 완료");
 
         response.sendRedirect("https://www.jangmadang.site");

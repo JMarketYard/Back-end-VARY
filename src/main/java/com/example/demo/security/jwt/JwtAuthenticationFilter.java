@@ -28,6 +28,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
+
+        System.out.println("=== JwtAuthenticationFilter 실행됨 === URI: " + request.getRequestURI());
+
         String requestURI = request.getRequestURI();
         log.info("요청된 URI: {}", request.getRequestURI());
         log.info("요청된 메서드: {}", request.getMethod());
